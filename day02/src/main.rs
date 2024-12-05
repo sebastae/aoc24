@@ -63,10 +63,43 @@ impl Report {
 
         safe_diff && same_dir
     }
+
+    fn except(&self, index: usize) -> Report {
+        Report(
+            self.0
+                .iter()
+                .enumerate()
+                .filter_map(|(i, val)| if i != index { Some(val.clone()) } else { None })
+                .collect(),
+        )
+    }
 }
 
 fn count_safe_reports(input: &str) -> usize {
-    input.lines().map_while(|line| line.parse::<Report>().ok()).filter(|report| report.is_safe()).count()
+    input
+        .lines()
+        .map_while(|line| line.parse::<Report>().ok())
+        .filter(|report| report.is_safe())
+        .count()
+}
+
+fn count_dampened_safe_reports(input: &str) -> usize {
+    let (safe, not_safe): (Vec<Report>, Vec<Report>) = input
+        .lines()
+        .map_while(|line| line.parse::<Report>().ok())
+        .partition(|report| report.is_safe());
+
+    let num_safe_with_dampening = not_safe.iter().filter(|report| {
+        for i in 0..report.0.len() {
+            if report.except(i).is_safe() {
+                return true;
+            }
+        }
+
+        false
+    });
+
+    safe.len() + num_safe_with_dampening.count()
 }
 
 fn main() {
@@ -74,6 +107,9 @@ fn main() {
     let safe_reports = count_safe_reports(input.as_str());
 
     println!("Part 1 - Safe reports: {}", safe_reports);
+
+    let safe_with_dampening = count_dampened_safe_reports(input.as_str());
+    println!("Part 2 - Safe with dampening: {}", safe_with_dampening);
 }
 
 #[cfg(test)]
@@ -83,8 +119,14 @@ mod test {
     const EXAMPLE_INPUT: &str = "7 6 4 2 1\n1 2 7 8 9\n9 7 6 2 1\n1 3 2 4 5\n8 6 4 4 1\n1 3 6 7 9";
 
     #[test]
-    fn it_solves_example_part_1(){
+    fn it_solves_example_part_1() {
         let safe_reports = count_safe_reports(EXAMPLE_INPUT);
         assert_eq!(safe_reports, 2);
+    }
+
+    #[test]
+    fn it_solves_example_part_2(){
+        let safe_reports_with_dampening = count_dampened_safe_reports(EXAMPLE_INPUT);
+        assert_eq!(safe_reports_with_dampening, 4);
     }
 }
