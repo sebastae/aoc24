@@ -2,3 +2,5 @@ input.txt
 !input.example.txt
 target/
 Cargo.lock
+node_modules/
+dist/
