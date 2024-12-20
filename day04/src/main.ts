@@ -69,7 +69,21 @@ function makeCharacterGrid(buffer: Buffer) {
     }
   }
 
-  return { at, charAt, forEach, readDirection, height, width };
+  // I'm lazy so we don't generalize for any length strings
+  // Though rather trivial to step (readLength - 1) / 2 steps in each direction from the center
+  // to get the orthogonal string for any length
+  function getOrthogonal({ x, y }: Position, [dx, dy]: Direction): number[] {
+    const { x: cx, y: cy }: Position = { x: x + dx, y: y + dy };
+    const chars = [
+      at(cx + dx * -1, cy + dy),
+      at(cx, cy),
+      at(cx + dx, cy + dy * -1),
+    ];
+
+    return chars.filter((c) => c != undefined);
+  }
+
+  return { at, charAt, forEach, readDirection, getOrthogonal, height, width };
 }
 
 (async function () {
@@ -99,4 +113,28 @@ function makeCharacterGrid(buffer: Buffer) {
   });
 
   console.log(`Number of "${TARGET_WORD}" occurrences: ${words.length}`);
+
+  // Part 2
+
+  const crossTarget = TARGET_WORD.substring(1);
+  const foundCrosses: Position[] = [];
+
+  grid.forEach((char, pos) => {
+    if (crossTarget.charCodeAt(0) == char) {
+    SEARCH_DIRECTIONS.filter(([dx, dy]) => dx*dy != 0).forEach((dir) => {
+      const diagonalWord = grid.readDirection(pos, dir, crossTarget.length)
+      if (String.fromCharCode(...diagonalWord) == crossTarget) {
+        const orthoWord = String.fromCharCode(...grid.getOrthogonal(pos, dir))
+        if (orthoWord == crossTarget || orthoWord.split('').reverse().join('') == crossTarget) {
+          foundCrosses.push(pos)
+        }
+      }
+    })
+    }
+  });
+
+  // Any valid cross will be found twice
+  console.log(`Number of crosses: ${foundCrosses.length / 2}`)
+  
+
 })();
