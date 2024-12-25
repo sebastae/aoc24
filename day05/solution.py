@@ -1,5 +1,6 @@
 import sys
 import math
+from typing import Iterable
 
 RuleType = tuple[int, int]
 UpdateType = list[int]
@@ -37,7 +38,7 @@ def build_disallow_sets(rules: list[RuleType]) -> DisallowMap:
     disallowed = dict[int, set[int]]()
     for rule in rules:
         pre, val = rule
-        if  val not in disallowed:
+        if val not in disallowed:
             disallowed[val] = set()
         disallowed[val].add(pre)
     return disallowed
@@ -62,14 +63,81 @@ def make_update_validator(rulemap: DisallowMap):
     return validator
 
 
+class Node:
+    def __init__(self, value: int):
+        self.value = value
+        self.incoming = set[Node]()
+        self.outgoing = set[Node]()
+
+    @staticmethod
+    def from_rules(rules: Iterable[RuleType]):
+        nodes = dict[int, Node]()
+        for rule in rules:
+            if rule[0] not in nodes:
+                nodes[rule[0]] = Node(rule[0])
+            if rule[1] not in nodes:
+                nodes[rule[1]] = Node(rule[1])
+
+            rhs_node = nodes[rule[0]]
+            lhs_node = nodes[rule[1]]
+
+            rhs_node.outgoing.add(lhs_node)
+            lhs_node.incoming.add(rhs_node)
+
+        return list(nodes.values())
+
+
+"""
+Sort values topologically using Kahn's algorithm
+"""
+
+
+def topological_sort(rules: Iterable[RuleType]) -> list[int]:
+    nodes = Node.from_rules(rules)
+    start_nodes = list(filter(lambda node: len(node.incoming) == 0, nodes))
+    out_list = list[int]()
+
+    while len(start_nodes) > 0:
+        node = start_nodes.pop()
+        out_list.append(node.value)
+
+        for outgoing in node.outgoing:
+            outgoing.incoming.remove(node)
+
+            if len(outgoing.incoming) == 0:
+                start_nodes.append(outgoing)
+
+    return out_list
+
+
+def make_update_fixer(rules: Iterable[RuleType]):
+    def fix_update(update: UpdateType) -> UpdateType:
+        update_set = set(update)
+        relevant_rules = list(
+            filter(lambda rule: rule[0] in update_set and rule[1] in update_set, rules)
+        )
+
+        sorted_values = topological_sort(relevant_rules)
+        return sorted_values
+
+    return fix_update
+
+
+def sum_centers(updates: Iterable[UpdateType]) -> int:
+    return sum(map(lambda update: update[math.floor(len(update) / 2)], updates))
+
+
 if __name__ == "__main__":
     rules, updates = parse_input(sys.argv[1])
     rulesets = build_disallow_sets(rules)
+
+    # Part 1 - find sum of center values in valid updates
     is_update_valid = make_update_validator(rulesets)
     valid_updates = filter(is_update_valid, updates)
+    print(f"Sum of valid centers: {sum_centers(valid_updates)}")
 
-    # Part 1 - find sum of center values
-    sum_of_centers = sum(
-        map(lambda update: update[math.floor(len(update) / 2)], valid_updates)
-    )
-    print(f"Sum of valid centers: {sum_of_centers}")
+    # Part 2 - fix incorrect updates
+    invalid_updates = filter(lambda update: not is_update_valid(update), updates)
+    reorder_update = make_update_fixer(rules)
+    fixed_updates = map(lambda update: reorder_update(update), invalid_updates)
+    print(f"Sum of fixed centers: {sum_centers(fixed_updates)}")
