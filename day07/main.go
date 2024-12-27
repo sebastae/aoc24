@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -97,11 +98,7 @@ func CalculateResultsLeft(numbers []int, operations []Operation) []int {
 	return rec_results
 }
 
-func (eq *Equation) IsValid() bool {
-	operations := []Operation{
-		func(a, b int) int { return a + b },
-		func(a, b int) int { return a * b },
-	}
+func (eq *Equation) IsValid(operations []Operation) bool {
 	results := CalculateResultsLeft(eq.Components, operations)
 	for _, result := range results {
 		if result == eq.Target {
@@ -129,13 +126,33 @@ func main() {
 		log.Fatal(err)
 	}
 
-  calibration_result := 0
-	for _, eq := range equations {
-    if (eq.IsValid()) {
-      calibration_result += eq.Target
-    }
+	operations := []Operation{
+		func(a, b int) int { return a + b },
+		func(a, b int) int { return a * b },
 	}
 
-  fmt.Printf("Total calibration result: %d\n", calibration_result)
+	calibration_result := 0
+	for _, eq := range equations {
+		if eq.IsValid(operations) {
+			calibration_result += eq.Target
+		}
+	}
+
+	fmt.Printf("Total calibration result: %d\n", calibration_result)
+
+	// Concat without string conversion
+	ops_with_concat := append(operations, func(a, b int) int {
+		exp := int(math.Floor(math.Log10(float64(b)))) + 1
+		return a*int(math.Pow10(exp)) + b
+	})
+
+	concat_calibration_result := int64(0)
+	for _, eq := range equations {
+		if eq.IsValid(ops_with_concat) {
+			concat_calibration_result += int64(eq.Target)
+		}
+	}
+
+	fmt.Printf("Total calibration result with concatenation: %d\n", concat_calibration_result)
 
 }
